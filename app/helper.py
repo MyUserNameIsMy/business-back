@@ -27,6 +27,7 @@ def analyze_business(filename):
     df_initial = pd.read_excel(filename, sheet_name="initial", index_col=0)
     df_inflow = pd.read_excel(filename, sheet_name="inflow", index_col=0)
     df_outflow = pd.read_excel(filename, sheet_name="outflow", index_col=0)
+    df_page4 = pd.read_excel(filename, sheet_name="page4", index_col=0)
 
     rate = df_initial['value'][0]
     investment = df_initial['value'][1]
@@ -55,11 +56,51 @@ def analyze_business(filename):
     cash_flow_list = cash_flow.values.tolist()
     cash_flow_list.insert(0, -investment)
     irr = npf.irr(cash_flow_list)
-    #PI
+    # PI
     pv_sum = sum(df_inflow[filter_in_col].loc['PV of Cash Inflow'].values.tolist())
     pi = pv_sum/investment
-    #pbpd
+    # pbpd
     avg_cash_flow = np.average(cash_flow)
     pbpd = investment/avg_cash_flow
 
-    return {'npv': npv-investment, 'irr': np.round(irr*100, 1), 'pi': np.round(pi, 1), 'pbpd': np.round(pbpd, 2)}
+    # equity debt total capital and ratio
+    equity = sum(df_page4[filter_in_col].loc['Equity'].values.tolist())
+    debt = sum(df_page4[filter_in_col].loc['Debt'].values.tolist())
+    total_capital = equity+debt
+    equity_ratio = equity / total_capital
+    debt_ratio = debt / total_capital
+
+    verdict_irr = 0
+    print(irr)
+    if irr > 0.2:
+        verdict_irr = 1
+    elif irr < 0.2:
+        verdict_irr = 0
+
+    verdict_npv = 0
+    if npv > 1:
+        verdict_npv = 1
+    elif npv == 0:
+        verdict_npv = 0
+    else:
+        verdict_npv = -1
+
+    verdict_pi = 0
+    if pi > 0:
+        verdict_pi = 1
+    else:
+        verdict_pi = 0
+
+    recommendation = ''
+    if npv > 0 and irr > rate:
+        recommendation = 'Привлекать финансирование через выпуск акций'
+    elif npv < 0 and irr < rate:
+        recommendation = 'Привлекать финансирование через выпуск облигаций'
+    else:
+        recommendation = 'Использовать смешанную стратегию привлечения финансирования'
+    return {'npv': np.round((npv-investment)/investment, 2), 'irr': np.round(irr*100, 1),
+            'pi': np.round(pi, 1), 'pbpd': np.round(pbpd, 2),
+            'verdict_npv': verdict_npv, 'verdict_irr': verdict_irr,
+            'verdict_pi': verdict_pi , 'recommendations': recommendation,
+            'debt_ratio': np.round(debt_ratio, 2), 'equity_ratio': np.round(equity_ratio, 2)
+            }
